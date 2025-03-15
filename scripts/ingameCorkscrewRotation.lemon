@@ -1,0 +1,70 @@
+/*
+	ABOUT THIS SCRIPT:
+	
+	This script is meant for people making character mods that overwrite that function in A.I.R.
+	that handles the drawing of character sprites, as seen here:
+	https://github.com/Eukaryot/sonic3air/blob/9ae7f0b9a977dedc6247378de0f433dd06d652bd/Oxygen/sonic3air/scripts/standalone/rendering/render_character.lemon#L79
+	
+	With Sonic 3 A.I.R., it allows overriding of animations and sprites in the game using two functions outside of the one I linked to,
+	however the code I created would likely not work with what would be most desired in the grand scheme of things.
+	
+	The code automates the process of creating 2 rotated versions of the Corkscrew sprites (where the character "spins"	on a given axis to give
+	the illusion of a 3D space) so that less effort is necessary to create and maintain animations within their mods.
+	
+	Because of it being purely code I thought up and worked on for a while, I request that anyone using it credit me when using the script,
+	with a link to my Github being optional.
+	
+	Thanks for reading!
+	~ Raine (nabbup)
+*/
+
+// For the record, the best spot to insert this code would be right after the code for handling Smooth Rotation, but before
+// the game accounts for inverted gravity. I'm sure if you look into it thoroughly enough you'll figure out a good spot.
+// Happy modding! ~ Raine
+
+constant array<u8> sidewaysCorkscrewSprites =
+{
+	0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x31, 0x32, 0x33, 0x34, 0x35
+}
+constant array<u8> angledCorkscrewSprites =
+{
+	0x37, 0x36, 0x35, 0x34, 0x33, 0x32, 0x31, 0x3c, 0x3b, 0x3a, 0x39, 0x38
+}
+if (animationSprite >= 0x6c && animationSprite <= 0x77) //sideways Corkscrew (AIZ tree, CNZ helix thing)
+{
+	bool onThatObject = objA0.state.both == char.state.RUNNING2 // more specifically, FBZ2 vertical cylinders that spin
+	
+	animationSprite = sidewaysCorkscrewSprites[animationSprite-0x6c]
+	angle = onThatObject ? 0x40 : -0x40
+	if (!onThatObject)
+		flags ^= SPRITE_FLAG_FLIP_Y
+	else if (flags & SPRITE_FLAG_FLIP_Y)
+		flags ^= SPRITE_FLAG_FLIP_Y
+	else
+		flags ^= SPRITE_FLAG_FLIP_X
+}
+if (animationSprite >= 0x49 && animationSprite <= 0x54) //angled Corkscrew (CNZ barber pole)
+{
+	animationSprite = angledCorkscrewSprites[animationSprite-0x49]
+	angle = char.flags2d == 0x02 ? 0x20 : -0x20
+	bool goingOppositeDirection = char.flags2d == 0x02 ? (flags & SPRITE_FLAG_FLIP_X) : !(flags & SPRITE_FLAG_FLIP_X)
+	if (goingOppositeDirection)
+		angle += 0x80
+	if (char.rotation == 0) // bug with CNZ fans, entering FBZ vertical cylinder for some reason
+	{
+		angle = char.flags2d == 0 ? 0xa0 : 0x20
+		if (char.flags2d == 0) // reverse it with FBZ vertical cylinders
+			flags ^= SPRITE_FLAG_FLIP_X
+	}
+	else // normal stuff
+	{
+		flags |= SPRITE_FLAG_FLIP_Y
+		if (goingOppositeDirection)
+		{
+			if (flags & SPRITE_FLAG_FLIP_X)
+				flags &= ~SPRITE_FLAG_FLIP_X
+			else
+				flags |= SPRITE_FLAG_FLIP_X
+		}
+	}
+}
